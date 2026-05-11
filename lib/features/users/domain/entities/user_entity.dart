@@ -12,6 +12,7 @@ class UserEntity extends Equatable {
   final bool isLocal;
   final bool pendingSync;
   final DateTime createdAt;
+  final int savedMovieCount;
 
   const UserEntity({
     required this.id,
@@ -24,6 +25,7 @@ class UserEntity extends Equatable {
     this.isLocal = false,
     this.pendingSync = false,
     required this.createdAt,
+    this.savedMovieCount = 0,
   });
 
   String get fullName => '$firstName $lastName';
@@ -40,5 +42,6 @@ class UserEntity extends Equatable {
         isLocal,
         pendingSync,
         createdAt,
+        savedMovieCount,
       ];
 }

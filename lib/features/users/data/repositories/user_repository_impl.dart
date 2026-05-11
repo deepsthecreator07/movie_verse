@@ -4,7 +4,7 @@ import '../../../../database/app_database.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/user_repository.dart';
 import '../datasources/user_remote_source.dart';
-import '../models/user_model.dart';
+import '../../../../sync/sync_manager.dart';
 
 /// Concrete implementation of UserRepository.
 /// Handles online/offline branching and local caching.
@@ -89,6 +89,10 @@ class UserRepositoryImpl implements UserRepository {
       ),
     );
 
+    if (pendingSync) {
+      SyncManager.triggerSync();
+    }
+
     return UserEntity(
       id: localId,
       remoteId: remoteId,
@@ -109,7 +113,24 @@ class UserRepositoryImpl implements UserRepository {
 
   @override
   Stream<List<UserEntity>> watchUsers() {
-    return database.watchAllUsers().map(_mapUsersToEntities);
+    return database.watchAllUsersWithSavedCount().map((usersWithCount) {
+      return usersWithCount.map((uwc) {
+        final u = uwc.user;
+        return UserEntity(
+          id: u.id,
+          remoteId: u.remoteId,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          email: u.email,
+          avatarUrl: u.avatarUrl,
+          movieTaste: u.movieTaste,
+          isLocal: u.isLocal,
+          pendingSync: u.pendingSync,
+          createdAt: u.createdAt,
+          savedMovieCount: uwc.savedCount,
+        );
+      }).toList();
+    });
   }
 
   @override

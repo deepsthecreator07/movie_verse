@@ -23,10 +23,24 @@ class AppDatabase extends _$AppDatabase {
   //  USER OPERATIONS
   // ═══════════════════════════════════════════════════════════
 
-  /// Watch all users ordered by creation date.
-  Stream<List<User>> watchAllUsers() {
-    return (select(users)..orderBy([(u) => OrderingTerm.desc(u.createdAt)]))
-        .watch();
+  /// Watch all users ordered by creation date, including their saved movie count.
+  Stream<List<UserWithSavedCount>> watchAllUsersWithSavedCount() {
+    final count = savedMovies.id.count();
+    final query = select(users).join([
+      leftOuterJoin(savedMovies, savedMovies.userId.equalsExp(users.id)),
+    ])
+      ..addColumns([count])
+      ..groupBy([users.id])
+      ..orderBy([OrderingTerm.desc(users.createdAt)]);
+
+    return query.watch().map((rows) {
+      return rows.map((row) {
+        return UserWithSavedCount(
+          user: row.readTable(users),
+          savedCount: row.read(count) ?? 0,
+        );
+      }).toList();
+    });
   }
 
   /// Get all users (one-shot).
@@ -208,6 +222,31 @@ class AppDatabase extends _$AppDatabase {
     return query.watchSingle().map((row) => row.read(count) ?? 0);
   }
 
+  /// Watch aggregate save counts for a set of movie IDs.
+  /// Returns a map of movieId → saveCount, updated reactively.
+  Stream<Map<int, int>> watchSaveCountsForMovies(List<int> movieIds) {
+    if (movieIds.isEmpty) return Stream.value({});
+    final count = savedMovies.id.count();
+    final query = selectOnly(savedMovies)
+      ..addColumns([savedMovies.movieId, count])
+      ..where(savedMovies.movieId.isIn(movieIds))
+      ..groupBy([savedMovies.movieId]);
+
+    return query.watch().map((rows) {
+      return {for (final row in rows) row.read(savedMovies.movieId)!: row.read(count) ?? 0};
+    });
+  }
+
+  /// Watch the list of users who saved a specific movie.
+  Stream<List<User>> watchUsersWhoSavedMovie(int movieId) {
+    final query = select(users).join([
+      innerJoin(savedMovies, savedMovies.userId.equalsExp(users.id)),
+    ])
+      ..where(savedMovies.movieId.equals(movieId));
+
+    return query.watch().map((rows) => rows.map((r) => r.readTable(users)).toList());
+  }
+
   /// Get saved movie IDs for a user (for quick lookup).
   Future<Set<int>> getSavedMovieIdsForUser(int userId) async {
     final query = select(savedMovies)
@@ -234,6 +273,14 @@ class MovieMatch {
   final int saveCount;
 
   const MovieMatch({required this.movie, required this.saveCount});
+}
+
+/// A user + how many movies they've saved.
+class UserWithSavedCount {
+  final User user;
+  final int savedCount;
+
+  const UserWithSavedCount({required this.user, required this.savedCount});
 }
 
 LazyDatabase _openConnection() {

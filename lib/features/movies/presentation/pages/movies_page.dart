@@ -3,10 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../../database/app_database.dart';
 import '../../../users/domain/entities/user_entity.dart';
 import '../../domain/entities/movie_entity.dart';
 import '../bloc/movies_bloc.dart';
@@ -54,7 +56,9 @@ class _MoviesPageState extends State<MoviesPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
       appBar: AppBar(
         title: Text('${widget.user.firstName}\'s Movies', style: AppTextStyles.headlineMedium),
         actions: [
@@ -114,6 +118,7 @@ class _MoviesPageState extends State<MoviesPage> {
                 return _MovieCard(
                   movie: movie,
                   isSaved: isSaved,
+                  saveCountStream: getIt<AppDatabase>().watchSaveCountForMovie(movie.id),
                   onTap: () => widget.onMovieTap(movie),
                   onSave: () => context.read<MoviesBloc>().add(
                     ToggleSaveMovie(userId: widget.user.id, movieId: movie.id),
@@ -124,6 +129,7 @@ class _MoviesPageState extends State<MoviesPage> {
           }
           return const SizedBox.shrink();
         },
+      ),
       ),
     );
   }
@@ -143,10 +149,17 @@ class _MoviesPageState extends State<MoviesPage> {
 class _MovieCard extends StatelessWidget {
   final MovieEntity movie;
   final bool isSaved;
+  final Stream<int> saveCountStream;
   final VoidCallback onTap;
   final VoidCallback onSave;
 
-  const _MovieCard({required this.movie, required this.isSaved, required this.onTap, required this.onSave});
+  const _MovieCard({
+    required this.movie,
+    required this.isSaved,
+    required this.saveCountStream,
+    required this.onTap,
+    required this.onSave,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +175,7 @@ class _MovieCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Poster
+            // ── Poster ────────────────────────────────────
             Expanded(
               flex: 4,
               child: Stack(
@@ -186,26 +199,7 @@ class _MovieCard extends StatelessWidget {
                             child: const Icon(Icons.movie, color: AppColors.textTertiary, size: 40),
                           ),
                   ),
-                  // Save button
-                  Positioned(
-                    top: 8, right: 8,
-                    child: GestureDetector(
-                      onTap: onSave,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: isSaved ? AppColors.accent : Colors.black54,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isSaved ? Icons.bookmark : Icons.bookmark_border,
-                          color: Colors.white, size: 18,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Rating badge
+                  // Star rating badge — bottom-left
                   Positioned(
                     bottom: 8, left: 8,
                     child: Container(
@@ -224,19 +218,81 @@ class _MovieCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // Save button — top-right
+                  Positioned(
+                    top: 8, right: 8,
+                    child: GestureDetector(
+                      onTap: onSave,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: isSaved ? AppColors.accent : Colors.black54,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isSaved ? Icons.bookmark : Icons.bookmark_border,
+                          color: Colors.white, size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-            // Title + year
+            // ── Info row ──────────────────────────────────
             Expanded(
               flex: 1,
               child: Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(movie.title, style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    if (movie.year.isNotEmpty) Text(movie.year, style: AppTextStyles.bodySmall),
+                    Text(
+                      movie.title,
+                      style: AppTextStyles.titleSmall.copyWith(color: AppColors.textPrimary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    // Year + savers count on the same row
+                    Row(
+                      children: [
+                        if (movie.year.isNotEmpty) ...[
+                          Text(movie.year, style: AppTextStyles.bodySmall),
+                          const Spacer(),
+                        ],
+                        // Savers count — live stream from DB
+                        StreamBuilder<int>(
+                          stream: saveCountStream,
+                          builder: (context, snapshot) {
+                            final count = snapshot.data ?? 0;
+                            return AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: Row(
+                                key: ValueKey(count),
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.people,
+                                    size: 12,
+                                    color: count > 0 ? AppColors.accent : AppColors.textTertiary,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '$count saved',
+                                    style: AppTextStyles.badge.copyWith(
+                                      color: count > 0 ? AppColors.accent : AppColors.textTertiary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),

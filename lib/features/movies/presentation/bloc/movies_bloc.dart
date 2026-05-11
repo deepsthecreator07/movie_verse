@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../database/app_database.dart';
 import '../../../saved_movies/domain/repositories/saved_movie_repository.dart';
 import '../../domain/repositories/movie_repository.dart';
 import 'movies_event.dart';
@@ -8,18 +9,24 @@ import 'movies_state.dart';
 class MoviesBloc extends Bloc<MoviesEvent, MoviesState> {
   final MovieRepository _movieRepository;
   final SavedMovieRepository _savedMovieRepository;
+  final AppDatabase _database;
   int _currentPage = 1;
   StreamSubscription<Set<int>>? _savedIdsSubscription;
+  StreamSubscription<Map<int, int>>? _saveCountSubscription;
 
   MoviesBloc({
     required MovieRepository movieRepository,
     required SavedMovieRepository savedMovieRepository,
+    required AppDatabase database,
   })  : _movieRepository = movieRepository,
         _savedMovieRepository = savedMovieRepository,
+        _database = database,
         super(const MoviesInitial()) {
     on<LoadMovies>(_onLoadMovies);
     on<LoadMoreMovies>(_onLoadMoreMovies);
     on<ToggleSaveMovie>(_onToggleSave);
+    on<UpdateSavedMovieIds>(_onUpdateSavedMovieIds);
+    on<UpdateSaveCounts>(_onUpdateSaveCounts);
   }
 
   Future<void> _onLoadMovies(
@@ -41,19 +48,26 @@ class MoviesBloc extends Bloc<MoviesEvent, MoviesState> {
         userId: event.userId,
       ));
 
-      // Listen for saved movie changes
+      // Listen for saved movie ID changes
       _savedIdsSubscription?.cancel();
       _savedIdsSubscription =
           _savedMovieRepository.watchSavedMovieIds(event.userId).listen((ids) {
-        final currentState = state;
-        if (currentState is MoviesLoaded) {
-          // ignore: invalid_use_of_visible_for_testing_member
-          emit(currentState.copyWith(savedMovieIds: ids));
-        }
+        if (!isClosed) add(UpdateSavedMovieIds(ids));
       });
+
+      // Listen for aggregate save-count changes across all loaded movies
+      _subscribeSaveCounts(movies.map((m) => m.id).toList());
     } catch (e) {
       emit(MoviesError(e.toString()));
     }
+  }
+
+  void _subscribeSaveCounts(List<int> movieIds) {
+    _saveCountSubscription?.cancel();
+    _saveCountSubscription =
+        _database.watchSaveCountsForMovies(movieIds).listen((countMap) {
+      if (!isClosed) add(UpdateSaveCounts(countMap));
+    });
   }
 
   Future<void> _onLoadMoreMovies(
@@ -69,11 +83,15 @@ class MoviesBloc extends Bloc<MoviesEvent, MoviesState> {
 
     try {
       final newMovies = await _movieRepository.getMovies(page: _currentPage);
+      final allMovies = [...currentState.movies, ...newMovies];
       emit(currentState.copyWith(
-        movies: [...currentState.movies, ...newMovies],
+        movies: allMovies,
         hasMore: newMovies.length >= 20,
         isLoadingMore: false,
       ));
+
+      // Re-subscribe with expanded movie list
+      _subscribeSaveCounts(allMovies.map((m) => m.id).toList());
     } catch (e) {
       emit(currentState.copyWith(isLoadingMore: false));
     }
@@ -109,9 +127,31 @@ class MoviesBloc extends Bloc<MoviesEvent, MoviesState> {
     }
   }
 
+  Future<void> _onUpdateSavedMovieIds(
+    UpdateSavedMovieIds event,
+    Emitter<MoviesState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is MoviesLoaded) {
+      emit(currentState.copyWith(savedMovieIds: event.savedIds));
+    }
+  }
+
+  Future<void> _onUpdateSaveCounts(
+    UpdateSaveCounts event,
+    Emitter<MoviesState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is MoviesLoaded) {
+      emit(currentState.copyWith(saveCountMap: event.saveCounts));
+    }
+  }
+
   @override
   Future<void> close() {
     _savedIdsSubscription?.cancel();
+    _saveCountSubscription?.cancel();
     return super.close();
   }
 }
+

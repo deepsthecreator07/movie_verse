@@ -6,6 +6,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/empty_state.dart';
+import '../../../movies/domain/entities/movie_entity.dart';
 import '../../../users/domain/entities/user_entity.dart';
 import '../bloc/saved_movies_bloc.dart';
 import '../bloc/saved_movies_event.dart';
@@ -14,17 +15,21 @@ import '../bloc/saved_movies_state.dart';
 /// PAGE 05 — Saved Movies for a specific user.
 class SavedMoviesPage extends StatelessWidget {
   final UserEntity user;
-  final void Function(int movieId) onMovieTap;
+  final void Function(MovieEntity movie) onMovieTap;
+  final VoidCallback onBrowseTap;
 
   const SavedMoviesPage({
     super.key,
     required this.user,
     required this.onMovieTap,
+    required this.onBrowseTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
       appBar: AppBar(
         title: Text('${user.firstName}\'s Watchlist', style: AppTextStyles.headlineMedium),
       ),
@@ -39,15 +44,82 @@ class SavedMoviesPage extends StatelessWidget {
           }
 
           if (state is SavedMoviesLoaded) {
+            Widget userHeader = Padding(
+              padding: const EdgeInsets.all(AppConstants.paddingMd),
+              child: Row(
+                children: [
+                  Hero(
+                    tag: 'user_avatar_${user.id}',
+                    child: CircleAvatar(
+                      radius: 32,
+                      backgroundColor: AppColors.surfaceLight,
+                      child: user.avatarUrl.isNotEmpty
+                          ? ClipOval(
+                              child: CachedNetworkImage(
+                                imageUrl: user.avatarUrl,
+                                width: 64,
+                                height: 64,
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Text(
+                              user.firstName.isNotEmpty ? user.firstName[0].toUpperCase() : '?',
+                              style: AppTextStyles.headlineMedium.copyWith(color: AppColors.primary),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(user.fullName, style: AppTextStyles.headlineMedium),
+                        if (user.movieTaste.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              user.movieTaste,
+                              style: AppTextStyles.labelMedium.copyWith(color: AppColors.primaryLight),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+
             if (state.movies.isEmpty) {
-              return const EmptyState(
-                icon: Icons.bookmark_border,
-                title: 'No saved movies yet',
-                subtitle: 'Browse movies and tap the bookmark to save them here.',
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  userHeader,
+                  const Spacer(),
+                  EmptyState(
+                    icon: Icons.bookmark_border,
+                    title: 'No saved movies yet',
+                    subtitle: 'Browse movies and tap the bookmark to save them here.',
+                    actionLabel: 'Browse Movies',
+                    onAction: onBrowseTap,
+                  ),
+                  const Spacer(),
+                ],
               );
             }
 
-            return ListView.builder(
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                userHeader,
+                const Divider(height: 1, color: AppColors.surfaceLight),
+                Expanded(
+                  child: ListView.builder(
               padding: const EdgeInsets.all(AppConstants.paddingMd),
               itemCount: state.movies.length,
               itemBuilder: (context, index) {
@@ -80,7 +152,7 @@ class SavedMoviesPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(AppConstants.borderRadius),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                        onTap: () => onMovieTap(movie.id),
+                        onTap: () => onMovieTap(movie),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
                           child: Row(
@@ -123,11 +195,20 @@ class SavedMoviesPage extends StatelessWidget {
                   ),
                 );
               },
+            ),
+                ),
+              ],
             );
           }
 
           return const SizedBox.shrink();
         },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: onBrowseTap,
+        icon: const Icon(Icons.movie_filter),
+        label: const Text('Browse Movies'),
+      ),
       ),
     );
   }

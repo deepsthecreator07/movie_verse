@@ -30,9 +30,7 @@ class UserRemoteSource {
       '/users',
       baseUrl: ApiConstants.reqresBaseUrl,
       data: {
-        'first_name': firstName,
-        'last_name': lastName,
-        'email': email,
+        'name': firstName,
         'job': movieTaste,
       },
     );

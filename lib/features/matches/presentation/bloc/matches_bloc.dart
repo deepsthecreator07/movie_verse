@@ -6,7 +6,6 @@ import 'matches_state.dart';
 
 class MatchesBloc extends Bloc<MatchesEvent, MatchesState> {
   final MatchesRepository _repository;
-  StreamSubscription? _subscription;
 
   MatchesBloc({required MatchesRepository repository})
       : _repository = repository,
@@ -20,22 +19,10 @@ class MatchesBloc extends Bloc<MatchesEvent, MatchesState> {
   ) async {
     emit(const MatchesLoading());
 
-    _subscription?.cancel();
-    _subscription = _repository.watchMatches().listen(
-      (matches) {
-        // ignore: invalid_use_of_visible_for_testing_member
-        emit(MatchesLoaded(matches));
-      },
-      onError: (e) {
-        // ignore: invalid_use_of_visible_for_testing_member
-        emit(MatchesError(e.toString()));
-      },
+    await emit.forEach<List<MatchEntity>>(
+      _repository.watchMatches(),
+      onData: (matches) => MatchesLoaded(matches),
+      onError: (e, _) => MatchesError(e.toString()),
     );
-  }
-
-  @override
-  Future<void> close() {
-    _subscription?.cancel();
-    return super.close();
   }
 }

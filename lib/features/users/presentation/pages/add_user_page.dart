@@ -16,17 +16,13 @@ class AddUserPage extends StatefulWidget {
 
 class _AddUserPageState extends State<AddUserPage> {
   final _formKey = GlobalKey<FormState>();
-  final _firstName = TextEditingController();
-  final _lastName = TextEditingController();
-  final _email = TextEditingController();
+  final _name = TextEditingController();
   final _taste = TextEditingController();
   bool _submitting = false;
 
   @override
   void dispose() {
-    _firstName.dispose();
-    _lastName.dispose();
-    _email.dispose();
+    _name.dispose();
     _taste.dispose();
     super.dispose();
   }
@@ -35,9 +31,7 @@ class _AddUserPageState extends State<AddUserPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     context.read<UsersBloc>().add(AddUser(
-      firstName: _firstName.text.trim(),
-      lastName: _lastName.text.trim(),
-      email: _email.text.trim(),
+      name: _name.text.trim(),
       movieTaste: _taste.text.trim(),
     ));
   }
@@ -54,7 +48,9 @@ class _AddUserPageState extends State<AddUserPage> {
           );
         }
       },
-      child: Scaffold(
+      child: PopScope(
+        canPop: true,
+        child: Scaffold(
         appBar: AppBar(title: Text('Add User', style: AppTextStyles.headlineMedium)),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(AppConstants.paddingLg),
@@ -73,28 +69,10 @@ class _AddUserPageState extends State<AddUserPage> {
                   child: const Center(child: Icon(Icons.person_add_alt_1, size: 48, color: Colors.white)),
                 ),
                 TextFormField(
-                  controller: _firstName,
-                  decoration: const InputDecoration(labelText: 'First Name', prefixIcon: Icon(Icons.person_outline)),
+                  controller: _name,
+                  decoration: const InputDecoration(labelText: 'Name', prefixIcon: Icon(Icons.person_outline)),
                   textCapitalization: TextCapitalization.words,
                   validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: AppConstants.paddingMd),
-                TextFormField(
-                  controller: _lastName,
-                  decoration: const InputDecoration(labelText: 'Last Name', prefixIcon: Icon(Icons.person_outline)),
-                  textCapitalization: TextCapitalization.words,
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-                ),
-                const SizedBox(height: AppConstants.paddingMd),
-                TextFormField(
-                  controller: _email,
-                  decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Required';
-                    if (!v.contains('@')) return 'Invalid email';
-                    return null;
-                  },
                 ),
                 const SizedBox(height: AppConstants.paddingMd),
                 TextFormField(
@@ -120,6 +98,7 @@ class _AddUserPageState extends State<AddUserPage> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

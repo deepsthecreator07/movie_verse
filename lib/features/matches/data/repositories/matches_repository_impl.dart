@@ -14,11 +14,14 @@ class MatchesRepositoryImpl implements MatchesRepository {
     return database.watchMatches().asyncMap((matches) async {
       final result = <MatchEntity>[];
 
-      for (final match in matches) {
-        // Get the users who saved this movie
-        final userIds = await database.getUserIdsForMovie(match.movie.id);
-        final allUsers = await database.getAllUsers();
+      // Get all users once, outside the loop
+      final allUsers = await database.getAllUsers();
 
+      for (final match in matches) {
+        // Get the user IDs who saved this movie
+        final userIds = await database.getUserIdsForMovie(match.movie.id);
+
+        // Filter users who saved this movie
         final matchedUsers = allUsers
             .where((u) => userIds.contains(u.id))
             .map((u) => UserEntity(
@@ -48,6 +51,7 @@ class MatchesRepositoryImpl implements MatchesRepository {
           ),
           saveCount: match.saveCount,
           users: matchedUsers,
+          totalAppUsers: allUsers.length,
         ));
       }
 

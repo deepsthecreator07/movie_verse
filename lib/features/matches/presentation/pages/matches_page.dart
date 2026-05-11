@@ -6,20 +6,21 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/empty_state.dart';
-import '../../domain/repositories/matches_repository.dart';
+import '../../../movies/domain/entities/movie_entity.dart';
 import '../bloc/matches_bloc.dart';
-import '../bloc/matches_event.dart';
 import '../bloc/matches_state.dart';
 
 /// PAGE 06 — Movies saved by 2+ users (Matches).
 class MatchesPage extends StatelessWidget {
-  final void Function(int movieId) onMovieTap;
+  final void Function(MovieEntity movie) onMovieTap;
 
   const MatchesPage({super.key, required this.onMovieTap});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
@@ -53,7 +54,7 @@ class MatchesPage extends StatelessWidget {
               itemCount: state.matches.length,
               itemBuilder: (context, index) {
                 final match = state.matches[index];
-                final isTopPick = match.saveCount >= 3;
+                final isTopPick = match.saveCount == match.totalAppUsers && match.totalAppUsers > 1;
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
@@ -64,7 +65,7 @@ class MatchesPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(AppConstants.borderRadius),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-                      onTap: () => onMovieTap(match.movie.id),
+                      onTap: () => onMovieTap(match.movie),
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(
@@ -142,6 +143,7 @@ class MatchesPage extends StatelessWidget {
 
           return const SizedBox.shrink();
         },
+      ),
       ),
     );
   }

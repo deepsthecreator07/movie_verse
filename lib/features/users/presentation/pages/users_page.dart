@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/shimmer_loading.dart';
 import '../../../../core/widgets/empty_state.dart';
-import '../../../../core/di/injection.dart';
+import '../../../../database/app_database.dart';
 import '../../domain/entities/user_entity.dart';
 import '../bloc/users_bloc.dart';
 import '../bloc/users_event.dart';
@@ -53,7 +54,9 @@ class _UsersPageState extends State<UsersPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
@@ -126,6 +129,7 @@ class _UsersPageState extends State<UsersPage> {
               color: AppColors.primary,
               child: ListView.builder(
                 controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(
                   vertical: AppConstants.paddingMd,
                 ),
@@ -159,6 +163,7 @@ class _UsersPageState extends State<UsersPage> {
         onPressed: widget.onAddUser,
         icon: const Icon(Icons.person_add),
         label: const Text('Add User'),
+      ),
       ),
     );
   }
@@ -232,10 +237,15 @@ class _UserListTileState extends State<_UserListTile>
   late final AnimationController _controller;
   late final Animation<double> _fadeAnimation;
   late final Animation<Offset> _slideAnimation;
+  late final Stream<int> _saveCountStream;
 
   @override
   void initState() {
     super.initState();
+    _saveCountStream = getIt<AppDatabase>()
+        .watchSavedMovieIdsForUser(widget.user.id)
+        .map((ids) => ids.length);
+
     _controller = AnimationController(
       duration: AppConstants.fadeInDuration,
       vsync: this,
@@ -333,11 +343,23 @@ class _UserListTileState extends State<_UserListTile>
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            widget.user.email,
-                            style: AppTextStyles.bodySmall,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          StreamBuilder<int>(
+                            stream: _saveCountStream,
+                            builder: (context, snapshot) {
+                              final count = snapshot.hasData ? snapshot.data! : widget.user.savedMovieCount;
+                              return Row(
+                                children: [
+                                  const Icon(Icons.bookmark, size: 14, color: AppColors.accent),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '$count movies saved',
+                                    style: AppTextStyles.labelSmall.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                           if (widget.user.movieTaste.isNotEmpty) ...[
                             const SizedBox(height: 4),

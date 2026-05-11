@@ -45,10 +45,10 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
     _currentPage++;
 
     try {
-      final newUsers = await _repository.getUsers(page: _currentPage);
+      final allUsers = await _repository.getUsers(page: _currentPage);
       emit(UsersLoaded(
-        users: [...currentState.users, ...newUsers],
-        hasMore: newUsers.length >= 6,
+        users: allUsers,
+        hasMore: allUsers.length > currentState.users.length,
         isLoadingMore: false,
       ));
     } catch (e) {
@@ -62,9 +62,9 @@ class UsersBloc extends Bloc<UsersEvent, UsersState> {
   ) async {
     try {
       final user = await _repository.createUser(
-        firstName: event.firstName,
-        lastName: event.lastName,
-        email: event.email,
+        firstName: event.name,
+        lastName: ' ',
+        email: 'unknown@local.app',
         movieTaste: event.movieTaste,
       );
 

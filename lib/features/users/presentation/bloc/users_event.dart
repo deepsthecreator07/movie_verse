@@ -19,18 +19,14 @@ class LoadMoreUsers extends UsersEvent {
 
 /// Add a new user.
 class AddUser extends UsersEvent {
-  final String firstName;
-  final String lastName;
-  final String email;
+  final String name;
   final String movieTaste;
 
   const AddUser({
-    required this.firstName,
-    required this.lastName,
-    required this.email,
+    required this.name,
     required this.movieTaste,
   });
 
   @override
-  List<Object?> get props => [firstName, lastName, email, movieTaste];
+  List<Object?> get props => [name, movieTaste];
 }

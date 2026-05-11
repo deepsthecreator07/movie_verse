@@ -19,6 +19,7 @@ class MoviesLoading extends MoviesState {
 class MoviesLoaded extends MoviesState {
   final List<MovieEntity> movies;
   final Set<int> savedMovieIds;
+  final Map<int, int> saveCountMap; // movieId → number of savers
   final bool hasMore;
   final bool isLoadingMore;
   final int userId;
@@ -26,6 +27,7 @@ class MoviesLoaded extends MoviesState {
   const MoviesLoaded({
     required this.movies,
     required this.savedMovieIds,
+    this.saveCountMap = const {},
     this.hasMore = true,
     this.isLoadingMore = false,
     required this.userId,
@@ -34,12 +36,14 @@ class MoviesLoaded extends MoviesState {
   MoviesLoaded copyWith({
     List<MovieEntity>? movies,
     Set<int>? savedMovieIds,
+    Map<int, int>? saveCountMap,
     bool? hasMore,
     bool? isLoadingMore,
   }) {
     return MoviesLoaded(
       movies: movies ?? this.movies,
       savedMovieIds: savedMovieIds ?? this.savedMovieIds,
+      saveCountMap: saveCountMap ?? this.saveCountMap,
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       userId: userId,
@@ -47,7 +51,7 @@ class MoviesLoaded extends MoviesState {
   }
 
   @override
-  List<Object?> get props => [movies, savedMovieIds, hasMore, isLoadingMore, userId];
+  List<Object?> get props => [movies, savedMovieIds, saveCountMap, hasMore, isLoadingMore, userId];
 }
 
 class MoviesError extends MoviesState {

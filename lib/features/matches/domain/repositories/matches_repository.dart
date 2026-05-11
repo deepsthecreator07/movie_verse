@@ -6,10 +6,12 @@ class MatchEntity {
   final MovieEntity movie;
   final int saveCount;
   final List<UserEntity> users;
+  final int totalAppUsers;
 
   const MatchEntity({
     required this.movie,
     required this.saveCount,
+    required this.totalAppUsers,
     this.users = const [],
   });
 }

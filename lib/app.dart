@@ -26,6 +26,7 @@ import 'features/matches/presentation/bloc/matches_bloc.dart';
 import 'features/matches/presentation/bloc/matches_event.dart';
 import 'features/matches/presentation/pages/matches_page.dart';
 import 'sync/sync_manager.dart';
+import 'database/app_database.dart';
 
 /// Root widget for MovieVerse.
 class MovieVerseApp extends StatefulWidget {
@@ -79,13 +80,54 @@ class _MovieVerseAppState extends State<MovieVerseApp> {
   }
 }
 
-class _AppHome extends StatelessWidget {
+class _AppHome extends StatefulWidget {
+  @override
+  State<_AppHome> createState() => _AppHomeState();
+}
+
+class _AppHomeState extends State<_AppHome> {
+  Future<bool> _onBackPressed() async {
+    if (Navigator.of(context).canPop()) {
+      // If there are routes to pop, pop them instead of exiting
+      Navigator.of(context).pop();
+      return false; // Don't exit the app
+    } else {
+      // We're on the root screen, show exit confirmation
+      final confirmExit = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) => AlertDialog(
+          title: const Text('Exit Application'),
+          content: const Text('Are you sure you want to exit the application?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Exit'),
+            ),
+          ],
+        ),
+      );
+      return confirmExit ?? false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return UsersPage(
-      onUserTap: (user) => _navigateToMovies(context, user),
-      onAddUser: () => _navigateToAddUser(context),
-      onMatchesTap: () => _navigateToMatches(context),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _onBackPressed();
+      },
+      child: UsersPage(
+        onUserTap: (user) => _navigateToSavedMovies(context, user),
+        onAddUser: () => _navigateToAddUser(context),
+        onMatchesTap: () => _navigateToMatches(context),
+      ),
     );
   }
 
@@ -96,6 +138,7 @@ class _AppHome extends StatelessWidget {
           create: (_) => MoviesBloc(
             movieRepository: getIt<MovieRepository>(),
             savedMovieRepository: getIt<SavedMovieRepository>(),
+            database: getIt<AppDatabase>(),
           )..add(LoadMovies(userId: user.id)),
           child: MoviesPage(
             user: user,
@@ -108,6 +151,23 @@ class _AppHome extends StatelessWidget {
   }
 
   void _navigateToDetail(BuildContext context, MovieEntity movie, UserEntity user) {
+    final db = getIt<AppDatabase>();
+    // Map DB User rows to UserEntity for the savers stream
+    final saversStream = db.watchUsersWhoSavedMovie(movie.id).map(
+      (rows) => rows.map((u) => UserEntity(
+        id: u.id,
+        remoteId: u.remoteId,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email,
+        avatarUrl: u.avatarUrl,
+        movieTaste: u.movieTaste,
+        isLocal: u.isLocal,
+        pendingSync: u.pendingSync,
+        createdAt: u.createdAt,
+      )).toList(),
+    );
+
     Navigator.of(context).push(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 350),
@@ -118,6 +178,7 @@ class _AppHome extends StatelessWidget {
               create: (_) => MoviesBloc(
                 movieRepository: getIt<MovieRepository>(),
                 savedMovieRepository: getIt<SavedMovieRepository>(),
+                database: db,
               )..add(LoadMovies(userId: user.id)),
               child: Builder(
                 builder: (ctx) {
@@ -126,6 +187,7 @@ class _AppHome extends StatelessWidget {
                   return MovieDetailPage(
                     movie: movie,
                     isSaved: isSaved,
+                    saversStream: saversStream,
                     onToggleSave: () => ctx.read<MoviesBloc>().add(
                       ToggleSaveMovie(userId: user.id, movieId: movie.id),
                     ),
@@ -158,9 +220,43 @@ class _AppHome extends StatelessWidget {
             ..add(LoadSavedMovies(userId: user.id)),
           child: SavedMoviesPage(
             user: user,
-            onMovieTap: (movieId) {},
+            onMovieTap: (movie) => _navigateToDetail(context, movie, user),
+            onBrowseTap: () => _navigateToMovies(context, user),
           ),
         ),
+      ),
+    );
+  }
+
+  void _navigateToDetailFromMatches(BuildContext context, MovieEntity movie) {
+    final db = getIt<AppDatabase>();
+    final saversStream = db.watchUsersWhoSavedMovie(movie.id).map(
+      (rows) => rows.map((u) => UserEntity(
+        id: u.id,
+        remoteId: u.remoteId,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        email: u.email,
+        avatarUrl: u.avatarUrl,
+        movieTaste: u.movieTaste,
+        isLocal: u.isLocal,
+        pendingSync: u.pendingSync,
+        createdAt: u.createdAt,
+      )).toList(),
+    );
+
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 350),
+        pageBuilder: (_, animation, __) {
+          return FadeTransition(
+            opacity: animation,
+            child: MovieDetailPage(
+              movie: movie,
+              saversStream: saversStream,
+            ),
+          );
+        },
       ),
     );
   }
@@ -171,7 +267,9 @@ class _AppHome extends StatelessWidget {
         builder: (_) => BlocProvider(
           create: (_) => MatchesBloc(repository: getIt<MatchesRepository>())
             ..add(const LoadMatches()),
-          child: MatchesPage(onMovieTap: (movieId) {}),
+          child: MatchesPage(
+            onMovieTap: (movie) => _navigateToDetailFromMatches(context, movie),
+          ),
         ),
       ),
     );

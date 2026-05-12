@@ -2,6 +2,8 @@
 
 A Flutter application where multiple users can each save movies they want to watch, and the app surfaces movies that everyone has saved — making group movie night decisions easy.
 
+> **AI Disclosure:** AI tools were used in building this project. See the [AI Usage](#ai-usage) section at the bottom for full transparency.
+
 ---
 
 ## What the App Does
@@ -247,3 +249,24 @@ flutter build appbundle --dart-define-from-file=.env
 Built artefacts are placed at:
 - APK → `build/app/outputs/flutter-apk/app-release.apk`
 - Bundle → `build/app/outputs/bundle/release/app-release.aab`
+
+---
+
+## AI Usage
+
+**Tool used:** Gemini / Claude (via Antigravity AI coding assistant in VS Code)
+
+AI was used throughout this project as a pair-programming tool. All architectural decisions, feature requirements, and debugging diagnoses were made by me. The AI was used to implement those decisions faster and to handle boilerplate — not to design the system.
+
+| Aspect | Me | AI |
+|--------|----|----|  
+| Architecture choice (Clean Arch, BLoC, Drift) | ✅ Decided | Implemented |
+| Database schema design (two ID spaces, join table) | ✅ Designed | Wrote the Dart code |
+| Identifying why users weren't loading | ✅ Diagnosed | Fixed the code |
+| Deciding to use `.env` for key security | ✅ Decided | Set up the mechanism |
+| Choosing SnackBars over dialogs | ✅ UX decision | Wired them in |
+| Identifying missing INTERNET permission in release | ✅ Diagnosed | Wrote the ProGuard rules |
+| Writing the README | ✅ Outlined all content | Formatted and wrote prose |
+| Visual design / color palette | ✅ Chose the direction | Generated specific values |
+
+For a full account of every prompt sent, the reasoning behind each one, and a breakdown of what the AI did vs. what I decided — see **[PROMPTS.md](./PROMPTS.md)**.

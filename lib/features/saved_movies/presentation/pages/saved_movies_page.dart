@@ -105,7 +105,6 @@ class SavedMoviesPage extends StatelessWidget {
                     icon: Icons.bookmark_border,
                     title: 'No saved movies yet',
                     subtitle: 'Browse movies and tap the bookmark to save them here.',
-                    actionLabel: 'Browse Movies',
                     onAction: onBrowseTap,
                   ),
                   const Spacer(),

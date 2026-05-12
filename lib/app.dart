@@ -27,6 +27,7 @@ import 'features/matches/presentation/bloc/matches_event.dart';
 import 'features/matches/presentation/pages/matches_page.dart';
 import 'sync/sync_manager.dart';
 import 'database/app_database.dart';
+import 'package:flutter/services.dart';
 
 /// Root widget for MovieVerse.
 class MovieVerseApp extends StatefulWidget {
@@ -45,7 +46,25 @@ class _MovieVerseAppState extends State<MovieVerseApp> {
     _isOffline = !connectivity.isOnline;
     connectivity.onConnectivityChanged.listen((online) {
       setState(() => _isOffline = !online);
-      if (online) SyncManager.triggerSync();
+      if (online) {
+        SyncManager.triggerSync();
+        final db = getIt<AppDatabase>();
+        db.getPendingSyncUsers().then((pending) {
+          if (pending.isNotEmpty) {
+            getIt<UserRepository>().syncPendingUsers().then((_) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Offline data synced successfully!'),
+                    behavior: SnackBarBehavior.floating,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            });
+          }
+        });
+      }
     });
   }
 
@@ -61,67 +80,54 @@ class _MovieVerseAppState extends State<MovieVerseApp> {
         title: 'MovieVerse',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: Column(
-          children: [
-            ReconnectingBar(isVisible: _isOffline),
-            Expanded(
-              child: Navigator(
-                onGenerateRoute: (settings) {
-                  return MaterialPageRoute(
-                    builder: (_) => _AppHome(),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+        builder: (context, child) {
+          return Column(
+            children: [
+              ReconnectingBar(isVisible: _isOffline),
+              if (child != null) Expanded(child: child),
+            ],
+          );
+        },
+        home: _AppHome(),
       ),
     );
   }
 }
 
 class _AppHome extends StatefulWidget {
+  const _AppHome({super.key});
   @override
   State<_AppHome> createState() => _AppHomeState();
 }
 
 class _AppHomeState extends State<_AppHome> {
-  Future<bool> _onBackPressed() async {
-    if (Navigator.of(context).canPop()) {
-      // If there are routes to pop, pop them instead of exiting
-      Navigator.of(context).pop();
-      return false; // Don't exit the app
-    } else {
-      // We're on the root screen, show exit confirmation
-      final confirmExit = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) => AlertDialog(
-          title: const Text('Exit Application'),
-          content: const Text('Are you sure you want to exit the application?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Exit'),
-            ),
-          ],
-        ),
-      );
-      return confirmExit ?? false;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        await _onBackPressed();
+        final confirmExit = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) => AlertDialog(
+            title: const Text('Exit Application'),
+            content: const Text('Are you sure you want to exit the application?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Exit'),
+              ),
+            ],
+          ),
+        );
+        if (confirmExit == true) {
+          SystemNavigator.pop();
+        }
       },
       child: UsersPage(
         onUserTap: (user) => _navigateToSavedMovies(context, user),

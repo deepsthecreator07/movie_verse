@@ -92,7 +92,7 @@ class _AddUserPageState extends State<AddUserPage> {
                 ),
                 const SizedBox(height: AppConstants.paddingMd),
                 Center(
-                  child: Text('Works offline — syncs when connected', style: AppTextStyles.bodySmall),
+                  child: Text('Tell Your Name and Movie Taste', style: AppTextStyles.bodySmall),
                 ),
               ],
             ),

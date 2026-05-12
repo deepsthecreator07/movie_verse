@@ -54,8 +54,19 @@ class MovieDetailPage extends StatelessWidget {
                             imageUrl: '${ApiConstants.posterW500}${movie.posterPath}',
                             fit: BoxFit.cover,
                             fadeInDuration: AppConstants.fadeInDuration,
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.surfaceLight,
+                              child: const Center(
+                                child: Icon(Icons.movie, color: AppColors.textTertiary, size: 80),
+                              ),
+                            ),
                           )
-                        : Container(color: AppColors.surfaceLight),
+                        : Container(
+                            color: AppColors.surfaceLight,
+                            child: const Center(
+                              child: Icon(Icons.movie, color: AppColors.textTertiary, size: 80),
+                            ),
+                          ),
                   ),
                   const DecoratedBox(
                     decoration: BoxDecoration(gradient: AppColors.posterOverlay),
@@ -96,7 +107,16 @@ class MovieDetailPage extends StatelessWidget {
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton.icon(
-                        onPressed: onToggleSave,
+                        onPressed: () {
+                          onToggleSave?.call();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(isSaved ? 'Movie removed from watchlist' : 'Movie saved to watchlist'),
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        },
                         icon: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 200),
                           child: Icon(

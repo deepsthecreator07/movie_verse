@@ -384,16 +384,7 @@ class _UserListTileState extends State<_UserListTile>
                       ),
                     ),
 
-                    // Sync indicator
-                    if (widget.user.pendingSync)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 8),
-                        child: Icon(
-                          Icons.cloud_upload_outlined,
-                          color: AppColors.warning,
-                          size: 20,
-                        ),
-                      ),
+
 
                     // Chevron
                     const Padding(

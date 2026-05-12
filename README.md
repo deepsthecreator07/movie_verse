@@ -224,9 +224,26 @@ TMDB movie IDs are used directly as the primary key. This means the same movie f
 # Install dependencies
 flutter pub get
 
-# Run with API keys
+# Debug run (hot reload, with API keys)
 flutter run --dart-define-from-file=.env
 
 # Regenerate Drift code (only needed if table schemas change)
 flutter pub run build_runner build --delete-conflicting-outputs
 ```
+
+## Building for Release
+
+> **Important:** `--dart-define-from-file=.env` must be passed to every build command.
+> Without it, `String.fromEnvironment()` returns empty strings and all API calls will fail silently.
+
+```bash
+# Release APK (for direct install / sideloading)
+flutter build apk --dart-define-from-file=.env
+
+# Release App Bundle (for Google Play Store upload — recommended)
+flutter build appbundle --dart-define-from-file=.env
+```
+
+Built artefacts are placed at:
+- APK → `build/app/outputs/flutter-apk/app-release.apk`
+- Bundle → `build/app/outputs/bundle/release/app-release.aab`
